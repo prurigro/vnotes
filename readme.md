@@ -19,6 +19,6 @@ Configuration is handled using environment variables:
 ## Usage
 
 * `vnotes [PATTERN]`: If multiple notes include `[PATTERN]` a list of matching notes is presented to choose from, otherwise it opens the closest matching note
-* `-c|--create [NAME]`: Creates a new note named `[NAME]`
-* `-d|--delete [NAME]`: Deletes the note named `[NAME]`
-* `-h|--help`: Shows the help text
+* `vnotes -c|--create [NAME]`: Creates a new note named `[NAME]`
+* `vnotes -d|--delete [NAME]`: Deletes the note named `[NAME]`
+* `vnotes -h|--help`: Shows the help text
