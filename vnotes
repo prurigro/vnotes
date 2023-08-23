@@ -1,0 +1,345 @@
+#!/usr/bin/env bash
+
+#
+# vnotes: manage your notes
+#
+#   Version: 1.0
+#
+# Written by Kevin MacMartin <prurigro@gmail.com>
+# Released under the MIT license
+#
+
+shopt -s extglob
+
+# Environment config
+EDITOR=${EDITOR:='/usr/bin/vim'}
+VNOTES_FOLDER=${VNOTES_FOLDER:="$HOME/Notes"}
+VNOTES_EXTENSION=${NOTES_SUFFIX:='md'}
+
+# Dependencies
+deps=('getkeycodes' 'stty' 'tput')
+
+declare -a documents=()
+max_docwidth=0
+
+# Colour Scheme
+[[ -t 1 ]] && {
+    c_d=$'\e[1;30m'   # DARK GREY
+    c_r=$'\e[1;31m'   # RED
+    c_g=$'\e[1;32m'   # GREEN
+    c_y=$'\e[1;33m'   # YELLOW
+    c_b=$'\e[1;34m'   # BLUE
+    c_m=$'\e[1;35m'   # VIOLET
+    c_t=$'\e[1;36m'   # TEAL
+    c_w=$'\e[1;37m'   # WHITE
+    c_u=$'\e[1;4;37m' # UNDERLINE WHITE
+    c_h=$'\e[1;41m'   # HIGHLIGHT RED
+    c_c=$'\e[0m'      # DISABLES COLOUR
+}
+
+# Display help text
+function help {
+    script_name="${0//*\/}"
+    printf '\n%s\n\n'      "${c_m}vnotes${c_w} - manage your notes$c_c"
+    printf '%s\n'          "${c_b}USAGE$c_c"
+    printf '  %-43s%s\n'   "${c_d}[${c_y}PATTERN$c_d]$c_c"                      ' — opens single match or lists multiple'
+    printf '  %-43s%s\n'   "$c_w-c$c_d|$c_w--create ${c_d}[${c_y}NAME$c_d]$c_c" ' — create a new note'
+    printf '  %-43s%s\n'   "$c_w-d$c_d|$c_w--delete ${c_d}[${c_y}NAME$c_d]$c_c" ' — deletes a note'
+    printf '  %-43s%s\n\n' "$c_w-h$c_d|$c_w--help$c_c"                          ' — show this help text'
+    exit
+}
+
+# Function to process key codes
+function getkeycode {
+    while read -r; do
+        [[ "$REPLY" =~ ^[0-9][0-9]*\ (.*)$ ]] && {
+            printf '%s\n' "${BASH_REMATCH[1]}"
+            break
+        }
+    done <<< "$1"
+}
+
+function prompt {
+    printf '%s ' "${c_w}Please choose a number from the list ${c_d}[$c_b$one_display-$upto$c_d] $c_d(${c_m}Q$c_w to quit$c_d)$c_w:$c_c"
+}
+
+function power {
+    local number="$1" power="$2" total=1
+
+    for (( x=0; x<"$power"; x++ )); do
+        total=$(( total * number ))
+    done
+
+    printf '%s\n' "$total"
+}
+
+function open_note {
+    printf '%s %s\n' "${c_y}Opening:" "$c_m${documents[$1]}$c_c"
+    [[ -n "$tty_state" ]] && stty "$tty_state"
+    "$EDITOR" "$VNOTES_FOLDER/${documents[$1]}.$VNOTES_EXTENSION"
+    exit
+}
+
+function create_note {
+    if [[ -n "$1" ]]; then
+        note="$VNOTES_FOLDER/${1}.$VNOTES_EXTENSION"
+        "$EDITOR" "$note"
+    else
+        printf '%s %s\n' "${c_r}ERROR:$c_c" 'No name given for the new note' >&2
+        exit 1
+    fi
+}
+
+function delete_note {
+    if [[ -n "$1" ]]; then
+        note="$VNOTES_FOLDER/${1}.$VNOTES_EXTENSION"
+
+        if [[ -f "$note" ]]; then
+            rm "$note"
+            printf '%s\n' "${c_w}The note '${c_m}$1${c_w}' has been ${c_r}DELETED$c_c"
+        else
+            printf '%s %s\n' "${c_r}ERROR:$c_c" "${c_w}The note '${c_m}$1${c_w}' doesn't exist" >&2
+            exit 1
+        fi
+    else
+        printf '%s %s\n' "${c_r}ERROR:$c_c" 'No name given for the new note' >&2
+        exit 1
+    fi
+}
+
+# Search for notes and open the closest match, or list out options if more than one exists
+function search_notes {
+    # Take the first input as the key
+    key="$1"
+
+    # Define Q, q, and Return respectively
+    alpha_Q=$(getkeycode "$(printf '%s' 'Q' | od -t o1)")
+    alpha_q=$(getkeycode "$(printf '%s' 'q' | od -t o1)")
+    key_cr=$(getkeycode "$(printf '\n' | od -t o1)")
+    key_0=$(getkeycode "$(printf '%s' '0' | od -t o1)")
+    key_1=$(getkeycode "$(printf '%s' '1' | od -t o1)")
+    key_2=$(getkeycode "$(printf '%s' '2' | od -t o1)")
+    key_3=$(getkeycode "$(printf '%s' '3' | od -t o1)")
+    key_4=$(getkeycode "$(printf '%s' '4' | od -t o1)")
+    key_5=$(getkeycode "$(printf '%s' '5' | od -t o1)")
+    key_6=$(getkeycode "$(printf '%s' '6' | od -t o1)")
+    key_7=$(getkeycode "$(printf '%s' '7' | od -t o1)")
+    key_8=$(getkeycode "$(printf '%s' '8' | od -t o1)")
+    key_9=$(getkeycode "$(printf '%s' '9' | od -t o1)")
+
+    # Build the list of notes and track the longest document name
+    if [[ -n "$key" ]]; then
+        for each in "$VNOTES_FOLDER"/*."$VNOTES_EXTENSION"; do
+            [[ "$each" =~ $key ]] && {
+                each="${each/*\/}"
+                each="${each/\.$VNOTES_EXTENSION}"
+                documents=("${documents[@]}" "$each")
+                (( max_docwidth < ${#each} )) && max_docwidth=${#each}
+            }
+        done
+    else
+        for each in "$VNOTES_FOLDER"/*."$VNOTES_EXTENSION"; do
+            each="${each/*\/}"
+            each="${each/\.$VNOTES_EXTENSION}"
+            documents=("${documents[@]}" "$each")
+            (( max_docwidth < ${#each} )) && max_docwidth=${#each}
+        done
+    fi
+
+    # Exit with an error if the list of notes is empty
+    (( ${#documents[*]} )) || {
+        printf '%s\n' "Can't find $key"
+        exit 1
+    }
+
+    if (( ${#documents[*]} == 1 )); then
+        [[ "${documents[0]}" =~ ^\ *\*\ *$ ]] && {
+            printf '%s %s\n' "${c_r}ERROR:$c_c" "${c_w}No notes in $c_m$VNOTES_FOLDER$c_c" >&2
+            exit 1
+        }
+
+        # Open the single document matching the search term
+        open_note 0
+    else
+        # Display the multiple matching documents (or the full list if no term was passed)
+        screen_width=$(tput cols)
+
+        if [[ -n "$screen_width" ]]; then
+            maxcolumns=0
+
+            while (( 1 )); do
+                (( (( max_docwidth + 8) * maxcolumns) > screen_width )) && {
+                    (( maxcolumns-- ))
+                    break
+                }
+
+                (( maxcolumns++ ))
+            done
+        else
+            maxcolumns=3
+        fi
+
+        # Get the number of values
+        upto=${#documents[@]}
+
+        # Calculate the number of digits in $upto
+        digits=1
+
+        while (( 1 )); do
+            digits_power=$(power 10 $digits)
+            (( (upto / digits_power) < 1 )) && break
+            (( digits++ ))
+        done
+
+        unset digits_power
+
+        # Draw the list
+        printf '\n'
+        cnt=1
+
+        for (( x=0; x<${#documents[*]}; x++ )); do
+            count_display=$(printf "%${digits}s" "$((x+1))")
+            count_display="${count_display//\ /0}"
+            (( x )) || one_display="$count_display"
+            printf "${c_b}[%${digits}s]$c_c$c_u%$(( max_docwidth + 1 ))s$c_c" "$count_display" "${documents[$x]}"
+
+            if (( (cnt + 1) > maxcolumns )); then
+                cnt=1
+                printf '\n'
+            else
+                (( cnt++ ))
+                printf '%4s' ' '
+                (( (x + 1) >= ${#documents[*]} )) && printf '\n'
+            fi
+        done
+
+        unset cnt
+        printf '\n'
+
+        # Initialize the interactive entry line
+        tput init
+        prompt
+        tput sc
+        tput rc
+
+        # Save the tty state
+        tty_state="$(stty -g)"
+
+        # Trap a function to restore the tty on exit
+        trap 'stty "$tty_state"; exit' SIGINT SIGQUIT SIGTERM
+
+        # Begin to capture input
+        stty cs8 -icanon -echo min 1 time 1
+        stty intr '' susp ''
+
+        # Loop the input loop and a set of input testing commands
+        while (( 1 )); do
+            # The input loop which accepts 0-9, q/Q/Ctrl-C to quit, Backspace and Enter
+            value=''
+
+            while (( 1 )); do
+                # Break out of the loop if $value is as long as the largest number to select from
+                (( ${#value} >= digits )) && break
+
+                # Wait for and accept input
+                keypress=$(getkeycode "$(dd bs=10 count=1 2> /dev/null | od -t o1)")
+
+                case "$keypress" in
+                    '177'|'010'|'033 133 063 176')
+                        # Backspace
+                        [[ -n "$value" ]] && value="${value:0:$((${#value}-1))}"
+                    ;;
+
+                    "$alpha_q"|"$alpha_Q") value='-1'; break ;;
+                    "$key_cr") [[ -n "$value" ]] && break ;;
+                    '003') value='-1'; break ;; # Ctrl-C
+                    "$key_0") value="${value}0" ;; # 0
+                    "$key_1") value="${value}1" ;; # 1
+                    "$key_2") value="${value}2" ;; # 2
+                    "$key_3") value="${value}3" ;; # 3
+                    "$key_4") value="${value}4" ;; # 4
+                    "$key_5") value="${value}5" ;; # 5
+                    "$key_6") value="${value}6" ;; # 6
+                    "$key_7") value="${value}7" ;; # 7
+                    "$key_8") value="${value}8" ;; # 8
+                    "$key_9") value="${value}9" ;; # 9
+                esac
+
+                # Redraw the input line with an up to date $value
+                tput el1
+                tput cr
+                prompt
+                printf '%s' "$value"
+            done
+
+            # Remove leading 0s from $value
+            value="${value##+(0)}"
+
+            # Quit if input was given to do so
+            (( value == -1 )) && {
+                printf '\n%s\n' "${c_r}Quitting!$c_c"
+                [[ -n "$tty_state" ]] && stty "$tty_state"
+                exit
+            }
+
+            # Evaluate the numbers and exit if valid, otherwise display an error and start again
+            if (( 1 <= value && value <= upto )); then
+                printf '\n'
+                open_note $(( value - 1 ))
+            else
+                tput el1
+                tput cr
+                printf '%s' "$c_h Invalid number: $value $c_c"
+                sleep .8
+                tput el1
+                tput cr
+                prompt
+            fi
+        done
+    fi
+
+    # Restore the tty state
+    [[ -n "$tty_state" ]] && stty "$tty_state"
+}
+
+# Check for missing dependencies
+declare -a missing_deps=()
+
+for dep in "${deps[@]}"; do
+    type -P "$dep" >/dev/null \
+        || missing_deps=( "${missing_deps[@]}" "$dep" )
+done
+
+[[ -n "${missing_deps[*]}" ]] && {
+    printf '%s\n' "${c_w}missing dependencies ($(
+        for (( x=0; x < ${#missing_deps[@]}; x++ )); do
+            printf '%s' "$c_m${missing_deps[$x]}$c_c"
+            (( (x + 1) < ${#missing_deps[@]} )) && printf '%s' ', '
+        done
+    )$c_w)"
+
+    exit 1
+}
+
+# Create the VNOTES_FOLDER if it doesn't exist
+[[ -d "$VNOTES_FOLDER" ]] || install -d "$VNOTES_FOLDER"
+
+# Parse for command line arguments
+case $1 in
+    -c|--create)
+        shift
+        create_note "$*"
+        ;;
+
+    -d|--delete)
+        shift
+        delete_note "$*"
+        ;;
+
+    -h|--help)
+        help
+        ;;
+
+    *)
+        search_notes "$*"
+esac
