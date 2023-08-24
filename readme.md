@@ -5,6 +5,7 @@ Manage your notes with flat files and your system text editor
 ## Dependencies
 
 * [bash](https://www.gnu.org/software/bash/bash.html)
+* [coreutils](https://www.gnu.org/software/coreutils/)
 * [kbd](http://www.kbd-project.org)
 * [ncurses](https://invisible-island.net/ncurses/ncurses.html)
 
