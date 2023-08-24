@@ -20,9 +20,10 @@ VNOTES_EXTENSION=${NOTES_SUFFIX:='md'}
 deps=('getkeycodes' 'stty' 'tput')
 
 declare -a documents=()
-declare one_display
-declare upto
-max_docwidth=0
+declare one_display=''
+declare upto=''
+declare tty_state=''
+declare max_docwidth=0
 
 # Colour Scheme
 [[ -t 1 ]] && {
@@ -106,10 +107,15 @@ function power {
     printf '%s\n' "$total"
 }
 
+# Restore the tty state
+function restore_tty_state {
+    [[ -n "$tty_state" ]] && stty "$tty_state"
+}
+
 # Opens a note
 function open_note {
     printf '%s %s\n' "${c_y}Opening:" "$c_m${documents[$1]}$c_c"
-    [[ -n "$tty_state" ]] && stty "$tty_state"
+    restore_tty_state
     "$EDITOR" "$VNOTES_FOLDER/${documents[$1]}.$VNOTES_EXTENSION"
     exit
 }
@@ -234,7 +240,7 @@ function search_notes {
         tty_state="$(stty -g)"
 
         # Trap a function to restore the tty on exit
-        trap 'stty "$tty_state"; exit' SIGINT SIGQUIT SIGTERM
+        trap 'restore_tty_state; exit' SIGINT SIGQUIT SIGTERM
 
         # Begin to capture input
         stty cs8 -icanon -echo min 1 time 1
@@ -287,7 +293,7 @@ function search_notes {
             # Quit if input was given to do so
             (( value == -1 )) && {
                 printf '\n%s\n' "${c_r}Quitting!$c_c"
-                [[ -n "$tty_state" ]] && stty "$tty_state"
+                restore_tty_state
                 exit
             }
 
@@ -307,8 +313,7 @@ function search_notes {
         done
     fi
 
-    # Restore the tty state
-    [[ -n "$tty_state" ]] && stty "$tty_state"
+    restore_tty_state
 }
 
 # Check for missing dependencies
