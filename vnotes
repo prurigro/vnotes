@@ -20,6 +20,8 @@ VNOTES_EXTENSION=${NOTES_SUFFIX:='md'}
 deps=('getkeycodes' 'stty' 'tput')
 
 declare -a documents=()
+declare one_display
+declare upto
 max_docwidth=0
 
 # Colour Scheme
@@ -49,37 +51,7 @@ function help {
     exit
 }
 
-# Function to process key codes
-function getkeycode {
-    while read -r; do
-        [[ "$REPLY" =~ ^[0-9][0-9]*\ (.*)$ ]] && {
-            printf '%s\n' "${BASH_REMATCH[1]}"
-            break
-        }
-    done <<< "$1"
-}
-
-function prompt {
-    printf '%s ' "${c_w}Please choose a number from the list ${c_d}[$c_b$one_display-$upto$c_d] $c_d(${c_m}Q$c_w to quit$c_d)$c_w:$c_c"
-}
-
-function power {
-    local number="$1" power="$2" total=1
-
-    for (( x=0; x<"$power"; x++ )); do
-        total=$(( total * number ))
-    done
-
-    printf '%s\n' "$total"
-}
-
-function open_note {
-    printf '%s %s\n' "${c_y}Opening:" "$c_m${documents[$1]}$c_c"
-    [[ -n "$tty_state" ]] && stty "$tty_state"
-    "$EDITOR" "$VNOTES_FOLDER/${documents[$1]}.$VNOTES_EXTENSION"
-    exit
-}
-
+# Create a note
 function create_note {
     if [[ -n "$1" ]]; then
         note="$VNOTES_FOLDER/${1}.$VNOTES_EXTENSION"
@@ -90,6 +62,7 @@ function create_note {
     fi
 }
 
+# Delete a note
 function delete_note {
     if [[ -n "$1" ]]; then
         note="$VNOTES_FOLDER/${1}.$VNOTES_EXTENSION"
@@ -107,12 +80,46 @@ function delete_note {
     fi
 }
 
+# Function to process key codes
+function getkeycode {
+    while read -r; do
+        [[ "$REPLY" =~ ^[0-9][0-9]*\ (.*)$ ]] && {
+            printf '%s\n' "${BASH_REMATCH[1]}"
+            break
+        }
+    done <<< "$1"
+}
+
+# Presents the range of numbers to choose from
+function prompt {
+    printf '%s ' "${c_w}Please choose a number from the list ${c_d}[${c_b}${one_display}-${upto}${c_d}] ${c_d}(${c_m}Q$c_w to quit${c_d})${c_w}:$c_c"
+}
+
+# Calculates a number to the power of another
+function power {
+    local number="$1" power="$2" total=1
+
+    for (( x=0; x<"$power"; x++ )); do
+        total=$(( total * number ))
+    done
+
+    printf '%s\n' "$total"
+}
+
+# Opens a note
+function open_note {
+    printf '%s %s\n' "${c_y}Opening:" "$c_m${documents[$1]}$c_c"
+    [[ -n "$tty_state" ]] && stty "$tty_state"
+    "$EDITOR" "$VNOTES_FOLDER/${documents[$1]}.$VNOTES_EXTENSION"
+    exit
+}
+
 # Search for notes and open the closest match, or list out options if more than one exists
 function search_notes {
     # Take the first input as the key
     key="$1"
 
-    # Define Q, q, and Return respectively
+    # Declare variables with the keycodes for "Q", "q", return/enter and 0-9
     alpha_Q=$(getkeycode "$(printf '%s' 'Q' | od -t o1)")
     alpha_q=$(getkeycode "$(printf '%s' 'q' | od -t o1)")
     key_cr=$(getkeycode "$(printf '\n' | od -t o1)")
@@ -148,11 +155,12 @@ function search_notes {
 
     # Exit with an error if the list of notes is empty
     (( ${#documents[*]} )) || {
-        printf '%s\n' "Can't find $key"
+        printf '%s\n' "${c_r}ERROR:$c_w Can't find ${key}$c_c"
         exit 1
     }
 
     if (( ${#documents[*]} == 1 )); then
+        # Exit with an error if the notes folder is empty
         [[ "${documents[0]}" =~ ^\ *\*\ *$ ]] && {
             printf '%s %s\n' "${c_r}ERROR:$c_c" "${c_w}No notes in $c_m$VNOTES_FOLDER$c_c" >&2
             exit 1
@@ -244,6 +252,7 @@ function search_notes {
                 # Wait for and accept input
                 keypress=$(getkeycode "$(dd bs=10 count=1 2> /dev/null | od -t o1)")
 
+                # Convert the keycode to a value
                 case "$keypress" in
                     '177'|'010'|'033 133 063 176')
                         # Backspace
