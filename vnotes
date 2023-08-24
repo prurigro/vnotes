@@ -17,13 +17,13 @@ VNOTES_FOLDER=${VNOTES_FOLDER:="$HOME/Notes"}
 VNOTES_EXTENSION=${NOTES_SUFFIX:='md'}
 
 # Dependencies
-deps=('dd' 'getkeycodes' 'od' 'stty' 'tput')
+declare -a deps=('dd' 'getkeycodes' 'od' 'stty' 'tput')
 
+# Declare global variables
 declare -a documents=()
-declare one_display=''
-declare upto=''
-declare tty_state=''
-declare max_docwidth=0
+declare -i max_docwidth=0 upto=0
+one_display=''
+tty_state=''
 
 # Colour Scheme
 [[ -t 1 ]] && {
@@ -100,7 +100,7 @@ function prompt {
 
 # Calculates a number to the power of another
 function power {
-    local number="$1" power="$2" total=1
+    local -i number="$1" power="$2" total=1
 
     for (( x=0; x<"$power"; x++ )); do
         total=$(( total * number ))
@@ -128,7 +128,8 @@ function search_notes {
     local key="$1"
 
     # Declare local variables we'll be using
-    local screen_width maxcolumns digits digits_power cnt count_display value keypress
+    local -i screen_width=0 maxcolumns=0 digits=1 digits_power cnt=1
+    local count_display value keypress
 
     # Declare variables with the keycodes for "Q", "q", return/enter and 0-9
     local alpha_Q alpha_q key_cr key_0 key_1 key_2 key_3 key_4 key_5 key_6 key_7 key_8 key_9
@@ -185,9 +186,7 @@ function search_notes {
         # Display the multiple matching documents (or the full list if no term was passed)
         screen_width=$(tput cols)
 
-        if [[ -n "$screen_width" ]]; then
-            maxcolumns=0
-
+        if (( screen_width > 0 )); then
             while (( 1 )); do
                 (( ((max_docwidth + 8) * maxcolumns) > screen_width )) && {
                     (( maxcolumns-- ))
@@ -204,8 +203,6 @@ function search_notes {
         upto=${#documents[@]}
 
         # Calculate the number of digits in $upto
-        digits=1
-
         while (( 1 )); do
             digits_power=$(power 10 $digits)
             (( (upto / digits_power) < 1 )) && break
@@ -214,7 +211,6 @@ function search_notes {
 
         # Draw the list
         printf '\n'
-        cnt=1
 
         for (( x=0; x<${#documents[*]}; x++ )); do
             count_display=$(printf "%${digits}s" "$(( x + 1 ))")
