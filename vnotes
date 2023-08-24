@@ -196,7 +196,7 @@ function search_notes {
                 (( maxcolumns++ ))
             done
         else
-            maxcolumns=3
+            maxcolumns=1
         fi
 
         # Get the number of values
