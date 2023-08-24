@@ -17,7 +17,7 @@ VNOTES_FOLDER=${VNOTES_FOLDER:="$HOME/Notes"}
 VNOTES_EXTENSION=${NOTES_SUFFIX:='md'}
 
 # Dependencies
-deps=('getkeycodes' 'stty' 'tput')
+deps=('dd' 'getkeycodes' 'od' 'stty' 'tput')
 
 declare -a documents=()
 declare one_display=''
