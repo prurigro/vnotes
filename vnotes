@@ -57,7 +57,7 @@ function create_note {
         note="$VNOTES_FOLDER/${1}.$VNOTES_EXTENSION"
         "$EDITOR" "$note"
     else
-        printf '%s %s\n' "${c_r}ERROR:$c_c" 'No name given for the new note' >&2
+        printf '%s %s\n' "${c_r}ERROR:$c_c" "${c_w}The name of the note to ${c_y}create$c_w was not provided$c_c" >&2
         exit 1
     fi
 }
@@ -69,13 +69,13 @@ function delete_note {
 
         if [[ -f "$note" ]]; then
             rm "$note"
-            printf '%s\n' "${c_w}The note '${c_m}$1${c_w}' has been ${c_r}DELETED$c_c"
+            printf '%s\n' "${c_w}The note ${c_m}$1${c_w} has been ${c_r}DELETED$c_c"
         else
-            printf '%s %s\n' "${c_r}ERROR:$c_c" "${c_w}The note '${c_m}$1${c_w}' doesn't exist" >&2
+            printf '%s %s\n' "${c_r}ERROR:$c_c" "${c_w}The note ${c_m}$1${c_w} doesn't exist" >&2
             exit 1
         fi
     else
-        printf '%s %s\n' "${c_r}ERROR:$c_c" 'No name given for the new note' >&2
+        printf '%s %s\n' "${c_r}ERROR:$c_c" "${c_w}The name of the note to ${c_y}delete$c_w was not provided$c_c" >&2
         exit 1
     fi
 }
@@ -155,7 +155,7 @@ function search_notes {
 
     # Exit with an error if the list of notes is empty
     (( ${#documents[*]} )) || {
-        printf '%s\n' "${c_r}ERROR:$c_w Can't find ${key}$c_c"
+        printf '%s\n' "${c_r}ERROR:$c_w Unable to find ${c_m}${key}${c_w}$c_c"
         exit 1
     }
 
