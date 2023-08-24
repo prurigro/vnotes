@@ -168,7 +168,7 @@ function search_notes {
             maxcolumns=0
 
             while (( 1 )); do
-                (( (( max_docwidth + 8) * maxcolumns) > screen_width )) && {
+                (( ((max_docwidth + 8) * maxcolumns) > screen_width )) && {
                     (( maxcolumns-- ))
                     break
                 }
@@ -198,7 +198,7 @@ function search_notes {
         cnt=1
 
         for (( x=0; x<${#documents[*]}; x++ )); do
-            count_display=$(printf "%${digits}s" "$((x+1))")
+            count_display=$(printf "%${digits}s" "$(( x + 1 ))")
             count_display="${count_display//\ /0}"
             (( x )) || one_display="$count_display"
             printf "${c_b}[%${digits}s]$c_c$c_u%$(( max_docwidth + 1 ))s$c_c" "$count_display" "${documents[$x]}"
@@ -247,7 +247,7 @@ function search_notes {
                 case "$keypress" in
                     '177'|'010'|'033 133 063 176')
                         # Backspace
-                        [[ -n "$value" ]] && value="${value:0:$((${#value}-1))}"
+                        [[ -n "$value" ]] && value="${value:0:$(( ${#value} - 1 ))}"
                     ;;
 
                     "$alpha_q"|"$alpha_Q") value='-1'; break ;;
