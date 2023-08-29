@@ -42,8 +42,6 @@ tty_state=''
 
 # Display help text
 function help {
-    local script_name="${0//*\/}"
-
     printf '\n%s\n\n'      "${c_m}vnotes${c_w} - manage your notes$c_c"
     printf '%s\n'          "${c_b}USAGE$c_c"
     printf '  %-43s%s\n'   "${c_d}[${c_y}PATTERN$c_d]$c_c"                      ' — opens single match or lists multiple'
